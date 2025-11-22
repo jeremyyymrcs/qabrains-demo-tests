@@ -26,7 +26,7 @@ class TestRegistration(BaseTest):
         self.registration_page.successful_registration(
             name=self.fake_data.first_name,
             email=self.fake_data.random_email,
-            country=self.fake_data.country,
+            country="Philippines",
             account_type=self.fake_data.account_type,
             password=Config.PASSWORD
         )

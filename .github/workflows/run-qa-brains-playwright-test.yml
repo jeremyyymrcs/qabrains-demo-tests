@@ -65,7 +65,7 @@ jobs:
           name: allure-results
           path: reports/allure-report
 
-  send-teams-card:
+  send-slack-card:
     runs-on: ubuntu-latest
     needs: playwright-docker
     if: always()
@@ -73,18 +73,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set webhook URL
-        id: select_webhook
-        run: |
-          if [ "${{ github.run_attempt }}" -gt 1 ]; then
-            echo "url=${{ secrets.CREDIFY_QA_WEBHOOK }}" >> $GITHUB_OUTPUT
-          else
-            echo "url=${{ secrets.CREDIFY_QA_AUTOMATION_WEBHOOK }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Send Teams Adaptive Card
+      - name: Send Slack Adaptive Card
         env:
-          LOGIC_APP_WEBHOOK_URL: ${{ steps.select_webhook.outputs.url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_HASH: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ inputs.commit_message }}
@@ -94,4 +85,4 @@ jobs:
           FAILED: ${{ needs.playwright-docker.outputs.failed }}
           TOTAL: ${{ needs.playwright-docker.outputs.total }}
           DATE_TIME: ${{ github.event.head_commit.timestamp || github.event.pushed_at || github.event.workflow_run.created_at }}
-        run: bash .github/scripts/send-teams-card.sh
+        run: bash .github/scripts/send-slack-card.sh

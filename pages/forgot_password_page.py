@@ -1,5 +1,5 @@
-from utils import ActionHandler, get_custom_logger, handle_exceptions_class, Config
-from locators import XPath, CssSelector, Common
+from utils import ActionHandler, get_custom_logger, handle_exceptions_class
+from locators import XPath, Common
 import allure
 logger = get_custom_logger(__name__)
 
@@ -14,7 +14,7 @@ class ForgotPasswordPage(ActionHandler):
     def navigate_to_tab(self):
         logger.info(f'Navigating to forgot password page')
         self.click_by_text("Forgot Password")
-        self.assert_element(self.user_authentication_label)
+        self.assert_text("Reset Password")
         logger.info(f'Navigated to forgot password page successfully')
 
     @allure.step('Successful Reset Password')

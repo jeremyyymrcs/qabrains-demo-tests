@@ -19,7 +19,7 @@ class RegistrationPage(ActionHandler):
     def navigate_to_tab(self):
         logger.info(f'Navigating to Registration page')
         self.click_by_text("Registration")
-        self.assert_element(self.name)
+        self.assert_text("Signup")
         logger.info(f'Navigated to Registration page successfully')
 
     @allure.step('Successful Registration')
