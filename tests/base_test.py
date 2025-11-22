@@ -31,10 +31,9 @@ class BaseTest:
             browser = p.chromium.launch(headless=run_mode, args=["--start-maximized"], channel=browser_channel)
             context = browser.new_context(
                 viewport={
-                    "width": Config.HEADLESS_SCREEN_WIDTH,
-                    "height": Config.HEADLESS_SCREEN_HEIGHT
-                }
-                if run_mode else None,
+                    "width": int(Config.HEADLESS_SCREEN_WIDTH),
+                    "height": int(Config.HEADLESS_SCREEN_HEIGHT)
+                } if run_mode else None,
                 no_viewport=not run_mode
             )
 

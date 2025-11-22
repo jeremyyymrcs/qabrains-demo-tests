@@ -85,4 +85,4 @@ jobs:
           FAILED: ${{ needs.playwright-docker.outputs.failed }}
           TOTAL: ${{ needs.playwright-docker.outputs.total }}
           DATE_TIME: ${{ github.event.head_commit.timestamp || github.event.pushed_at || github.event.workflow_run.created_at }}
-        run: bash .github/scripts/send-teams-card.sh
+        run: bash .github/scripts/send-slack-card.sh
