@@ -17,24 +17,31 @@ json_payload=$(cat <<EOF
     },
     {
       "type": "section",
-      "fields": [
-        {
-          "type": "mrkdwn",
-          "text": "*Status:*\n${RESULT_STATUS}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "✅ *Passed:*\n${PASSED}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "❌ *Failed:*\n${FAILED}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "🧪 *Total Tests:*\n${TOTAL}"
-        }
-      ]
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Status:* ${RESULT_STATUS}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "✅ *Passed:* ${PASSED}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "❌ *Failed:* ${FAILED}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "🧪 *Total Tests:* ${TOTAL}"
+      }
     },
     {
       "type": "divider"
@@ -48,28 +55,38 @@ json_payload=$(cat <<EOF
     },
     {
       "type": "section",
-      "fields": [
-        {
-          "type": "mrkdwn",
-          "text": "📂 *Branch:*\n${BRANCH}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "🔢 *Commit Hash:*\n\`${COMMIT_HASH}\`"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "💬 *Commit Message:*\n${COMMIT_MESSAGE}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "👤 *Actor:*\n${ACTOR}"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "🕒 *Date/Time:*\n${DATE_TIME}"
-        }
-      ]
+      "text": {
+        "type": "mrkdwn",
+        "text": "📂 *Branch:* ${BRANCH}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "🔢 *Commit Hash:* \`${COMMIT_HASH}\`"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "💬 *Commit Message:* ${COMMIT_MESSAGE}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "👤 *Actor:* ${ACTOR}"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "🕒 *Date/Time:* ${DATE_TIME}"
+      }
     },
     {
       "type": "section",
