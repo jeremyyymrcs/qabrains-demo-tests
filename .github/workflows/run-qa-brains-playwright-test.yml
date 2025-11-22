@@ -1,0 +1,97 @@
+name: Run QA Brains Playwright Tests
+
+on:
+  workflow_call:
+    inputs:
+      commit_message:
+        required: false
+        type: string
+      event_type:
+        required: false
+        type: string
+    secrets:
+      HEADLESS_SCREEN_WIDTH:
+        required: true
+      HEADLESS_SCREEN_HEIGHT:
+        required: true
+      HEADLESS:
+        required: true
+      QA_BRAINS_URL:
+        required: true
+      EMAIL:
+        required: true
+      PASSWORD:
+        required: true
+
+jobs:
+  playwright-docker:
+    runs-on: ubuntu-latest
+
+    outputs:
+      result_status: ${{ steps.login_test.outputs.result_status }}
+      passed: ${{ steps.login_test.outputs.passed }}
+      failed: ${{ steps.login_test.outputs.failed }}
+      total: ${{ steps.login_test.outputs.total }}
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t playwright-test:latest .
+
+      - name: Create .env file for Docker
+        run: |
+          echo "HEADLESS_SCREEN_WIDTH=${{ secrets.HEADLESS_SCREEN_WIDTH }}" >> .env
+          echo "HEADLESS_SCREEN_HEIGHT=${{ secrets.HEADLESS_SCREEN_HEIGHT }}" >> .env
+          echo "HEADLESS=${{ secrets.HEADLESS }}" >> .env
+          echo "QA_BRAINS_URL=${{ secrets.QA_BRAINS_URL }}" >> .env
+          echo "EMAIL=${{ secrets.EMAIL }}" >> .env
+          echo "PASSWORD=${{ secrets.PASSWORD }}" >> .env
+        shell: bash
+
+      - name: Run Playwright tests inside Docker
+        id: login_test
+        run: |
+          sed -i 's/\r$//' .github/scripts/run-playwright-tests.sh
+          bash .github/scripts/run-playwright-tests.sh
+
+      - name: Upload Allure Results
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: reports/allure-report
+
+  send-teams-card:
+    runs-on: ubuntu-latest
+    needs: playwright-docker
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set webhook URL
+        id: select_webhook
+        run: |
+          if [ "${{ github.run_attempt }}" -gt 1 ]; then
+            echo "url=${{ secrets.CREDIFY_QA_WEBHOOK }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.CREDIFY_QA_AUTOMATION_WEBHOOK }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Teams Adaptive Card
+        env:
+          LOGIC_APP_WEBHOOK_URL: ${{ steps.select_webhook.outputs.url }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_HASH: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ inputs.commit_message }}
+          ACTOR: ${{ github.actor }}
+          RESULT_STATUS: ${{ needs.playwright-docker.outputs.result_status }}
+          PASSED: ${{ needs.playwright-docker.outputs.passed }}
+          FAILED: ${{ needs.playwright-docker.outputs.failed }}
+          TOTAL: ${{ needs.playwright-docker.outputs.total }}
+          DATE_TIME: ${{ github.event.head_commit.timestamp || github.event.pushed_at || github.event.workflow_run.created_at }}
+        run: bash .github/scripts/send-teams-card.sh

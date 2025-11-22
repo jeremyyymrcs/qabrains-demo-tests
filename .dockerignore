@@ -1,0 +1,13 @@
+Dockerfile
+.env
+.env.example
+.venv
+.idea
+
+__pycache__
+
+reports/allure-report
+reports/allure-results
+reports/screenshots
+reports/my_custom.log
+!reports/

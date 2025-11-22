@@ -1,0 +1,16 @@
+__pycache__
+
+reports/allure-report
+reports/allure-results
+reports/screenshots
+reports/my_custom.log
+!reports/
+
+.env
+.venv
+.idea
+venv
+
+pytest_output.txt
+reports/test_summary.txt
+.secrets

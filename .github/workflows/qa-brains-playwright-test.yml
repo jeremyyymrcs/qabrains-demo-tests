@@ -1,0 +1,27 @@
+name: QA Brains Playwright Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_id:
+        required: false
+        description: The commit SHA triggering this workflow
+      commit_message:
+        required: false
+        description: The commit message
+  push:
+    branches:
+      - development
+      - 'SVC-*'
+  pull_request:
+    branches:
+      - development
+      - 'SVC-*'
+
+jobs:
+  run-playwright:
+    uses: ./.github/workflows/run-qa-brains-playwright-test.yml
+    with:
+      commit_message: ${{ github.event.head_commit.message || github.event.inputs.commit_message || '' }}
+      event_type: ${{ github.event_name }}
+    secrets: inherit
