@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
+# URL to the current GitHub Actions run
 run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
+# Prepare Slack JSON payload
 json_payload=$(cat <<EOF
 {
   "blocks": [
@@ -64,6 +66,7 @@ json_payload=$(cat <<EOF
 EOF
 )
 
+# Send payload to Slack
 curl -X POST "$SLACK_WEBHOOK_URL" \
      -H "Content-Type: application/json" \
      -d "$json_payload"
