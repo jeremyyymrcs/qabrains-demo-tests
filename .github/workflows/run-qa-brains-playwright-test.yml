@@ -73,18 +73,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set webhook URL
-        id: select_webhook
-        run: |
-          if [ "${{ github.run_attempt }}" -gt 1 ]; then
-            echo "url=${{ secrets.CREDIFY_QA_WEBHOOK }}" >> $GITHUB_OUTPUT
-          else
-            echo "url=${{ secrets.CREDIFY_QA_AUTOMATION_WEBHOOK }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Send Teams Adaptive Card
         env:
-          LOGIC_APP_WEBHOOK_URL: ${{ steps.select_webhook.outputs.url }}
+          LOGIC_APP_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_HASH: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ inputs.commit_message }}
