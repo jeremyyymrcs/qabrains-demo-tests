@@ -65,7 +65,7 @@ jobs:
           name: allure-results
           path: reports/allure-report
 
-  send-teams-card:
+  send-slack-card:
     runs-on: ubuntu-latest
     needs: playwright-docker
     if: always()

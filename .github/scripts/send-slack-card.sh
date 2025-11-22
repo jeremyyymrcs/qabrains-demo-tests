@@ -17,10 +17,27 @@ json_payload=$(cat <<EOF
     },
     {
       "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Status:* ${RESULT_STATUS}\n✅ Passed: ${PASSED}\n❌ Failed: ${FAILED}\n🧪 Total Tests: ${TOTAL}"
-      }
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Status:*\n${RESULT_STATUS}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "✅ *Passed:*\n${PASSED}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "❌ *Failed:*\n${FAILED}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "🧪 *Total Tests:*\n${TOTAL}"
+        }
+      ]
+    },
+    {
+      "type": "divider"
     },
     {
       "type": "section",
@@ -38,7 +55,7 @@ json_payload=$(cat <<EOF
         },
         {
           "type": "mrkdwn",
-          "text": "🔢 *Commit Hash:*\n${COMMIT_HASH}"
+          "text": "🔢 *Commit Hash:*\n\`${COMMIT_HASH}\`"
         },
         {
           "type": "mrkdwn",
