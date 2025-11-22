@@ -94,6 +94,13 @@ json_payload=$(cat <<EOF
         "type": "mrkdwn",
         "text": "📄 <${run_url}|View Allure Report>"
       }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "\n\n"
+      }
     }
   ]
 }
