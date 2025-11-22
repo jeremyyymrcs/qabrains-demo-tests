@@ -22,7 +22,7 @@ class ForgotPasswordPage(ActionHandler):
         logger.info(f"Starting to Reset Password for: {email}")
         self.type(self.email, email)
         self.click(self.reset_password_button)
-        self.assert_element(self.check_email_message)
+        self.assert_element(self.check_email_message, element_timeout=15000)
         logger.info(f"Successfully Reset Password for: {email}")
 
 

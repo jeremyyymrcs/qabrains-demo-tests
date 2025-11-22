@@ -73,9 +73,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Send Teams Adaptive Card
+      - name: Send Slack Adaptive Card
         env:
-          LOGIC_APP_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_HASH: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ inputs.commit_message }}
