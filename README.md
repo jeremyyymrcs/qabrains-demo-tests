@@ -136,11 +136,13 @@ These notifications help your team **quickly monitor test results** without manu
 Below is an example of a successful test execution:
 ![Sample Passed from Github Actions](docs/images/gha-passed-test.png)
 ![Sample Passed Slack Report](docs/images/slack-passed-test-report.png)
+![Sample Passed Allure Report](docs/images/allure-passed-report.png)
 
 
 ### ❌ Sample Failed Test
 Below is an example of a failed test execution:
 ![Sample Failed from Github Actions](docs/images/gha-failed-test.png)
 ![Sample Failed Slack Report](docs/images/slack-failed-test-report.png)
+![Sample Failed Allure Report](docs/images/allure-failed-report.png)
 
 
