@@ -23,7 +23,7 @@ Connect with me:
 | Tool / Framework      | Version | Download / Documentation                                        |
 |-----------------------|---------|-----------------------------------------------------------------|
 | **Python**            | 3.12.x  | [Download Python](https://www.python.org/downloads/)            |
-| **Playwright**        | 1.43.x  | [Playwright Docs](https://playwright.dev/python/docs/intro)     |
+| **Playwright**        | 1.56.x  | [Playwright Docs](https://playwright.dev/python/docs/intro)     |
 | **Pytest**            | 7.4.x   | [Pytest Docs](https://docs.pytest.org/en/stable/)               |
 | **Allure Report**     | 2.21.x  | [Allure Docs](https://docs.qameta.io/allure/)                   |
 | **Slack API Webhook** | -       | [Slack API](https://api.slack.com/apps/)                        |

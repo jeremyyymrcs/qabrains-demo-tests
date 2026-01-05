@@ -1,4 +1,4 @@
-from utils import ActionHandler, get_custom_logger, handle_exceptions_class, Config
+from utils import ActionHandler, get_custom_logger, handle_exceptions_class
 from locators import XPath, Common
 import allure
 

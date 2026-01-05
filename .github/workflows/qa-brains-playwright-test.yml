@@ -11,12 +11,14 @@ on:
         description: The commit message
   push:
     branches:
+      - main
       - development
-      - 'SVC-*'
+      - 'feature-*'
   pull_request:
     branches:
+      - main
       - development
-      - 'SVC-*'
+      - 'feature-*'
 
 jobs:
   run-playwright:
