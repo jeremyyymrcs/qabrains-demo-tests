@@ -1,5 +1,5 @@
 from test_data import CreateFakeData, get_test_image_path
-from tests import BaseTest
+from tests.base_test import BaseTest
 import allure
 import pytest
 
@@ -9,17 +9,18 @@ import pytest
 class TestFormSubmission(BaseTest):
     fake_data = CreateFakeData()
 
+
+    @allure.severity(allure.severity_level.CRITICAL)
+    @pytest.mark.positive
+    @pytest.mark.skip_auto_login
     @allure.title("Successful Form Submission with Valid Data")
     @allure.story("User can submit the form with valid details")
-    @allure.severity(allure.severity_level.CRITICAL)
     @allure.description("""
         This test verifies that a user can successfully submit the form
         with valid details including name, email, contact number, date, 
         file upload, and country. The test will fail if form submission 
         is unsuccessful or validation errors occur.
     """)
-    @pytest.mark.positive
-    @pytest.mark.skip_auto_login
     def test_successful_form_submission(self):
         image_path = get_test_image_path()
         self.form_submission_page.navigate_to_tab()

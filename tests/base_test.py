@@ -1,5 +1,4 @@
 import pytest
-from playwright.sync_api import sync_playwright
 from typing import Optional
 from pages import BasePage, LoginPage, ForgotPasswordPage, RegistrationPage, FormSubmissionPage
 
@@ -10,6 +9,7 @@ logger = get_custom_logger(__name__)
 
 class BaseTest:
     """Base test class to handle common setup and login for test cases."""
+    _extra_pages = []
     base_page: Optional[BasePage]
     login_page: Optional[LoginPage]
     forgot_password_page: Optional[ForgotPasswordPage]
@@ -17,35 +17,21 @@ class BaseTest:
     form_submission_page: Optional[FormSubmissionPage]
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self, request):
+    def setup_and_teardown(self, request, page):
         """Fixture to set up the page for each test and handle login functionality."""
+        self._extra_pages = []
         print("")
         logger.info(f"\033[94m[STARTING TEST CASE: {request.node.name}]")
 
-        run_mode = Config.HEADLESS.lower() == "true"
+        self.base_page = BasePage(page)
+        self.base_page.open_page()
+        self._initialize_pages()
+        self._perform_login(request)
 
-        browser_channel = "chrome" if not run_mode else None
-
-        # Start Playwright and launch the browser maximized
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=run_mode, args=["--start-maximized"], channel=browser_channel)
-            context = browser.new_context(
-                viewport={
-                    "width": int(Config.HEADLESS_SCREEN_WIDTH),
-                    "height": int(Config.HEADLESS_SCREEN_HEIGHT)
-                } if run_mode else None,
-                no_viewport=not run_mode
-            )
-
-            page = context.new_page()
-            self.base_page = BasePage(page)
-            self.base_page.open_page()
-            self._initialize_pages()
-            self._perform_login(request)
-
-            yield
-            context.close()
-            browser.close()
+        yield
+        for page, page_context in self._extra_pages:
+            page.close()
+            page_context.close()
 
         logger.info(f"\033[94m[TEST CASE COMPLETED: {request.node.name}]")
         print("")
