@@ -38,6 +38,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ==============================
+      # OLLAMA SETUP
+      # ==============================
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama
+        run: |
+          ollama serve > ollama.log 2>&1 &
+          
+          echo "Waiting for Ollama..."
+          
+          for i in {1..30}; do
+            if curl -s http://localhost:11434/api/tags > /dev/null; then
+              echo "Ollama is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Pull AI Model
+        run: |
+          ollama pull llama3.2:3b
+
+      # ==============================
+      # PLAYWRIGHT
+      # ==============================
+
       - name: Build Docker image
         run: docker build -t playwright-test:latest .
 
@@ -53,9 +83,62 @@ jobs:
 
       - name: Run Playwright tests inside Docker
         id: login_test
+        continue-on-error: true
         run: |
           sed -i 's/\r$//' .github/scripts/run-playwright-tests.sh
           bash .github/scripts/run-playwright-tests.sh
+
+      # ==============================
+      # AI ANALYSIS
+      # ==============================
+
+      - name: Analyze failures with Ollama
+        if: always()
+        run: |
+          if [ "${{ steps.login_test.outputs.failed }}" -gt 0 ]; then
+            echo "Tests failed. Running AI analysis..."
+
+            mkdir -p reports
+
+            {
+              echo "You are an expert QA Automation Engineer."
+              echo ""
+              echo "Analyze the following Playwright test failure."
+              echo ""
+              echo "TEST SUMMARY:"
+              cat reports/test_summary.txt 2>/dev/null || echo "No test summary available."
+              echo ""
+              echo "PLAYWRIGHT OUTPUT:"
+              cat reports/playwright-output.log 2>/dev/null | tail -n 300 || echo "No Playwright output available."
+              echo ""
+              echo "ALLURE FILES:"
+              find reports/allure-report -type f 2>/dev/null | head -n 100 || echo "No Allure files available."
+              echo ""
+              echo "Provide:"
+              echo "1. Root Cause"
+              echo "2. Failed Test"
+              echo "3. Likely Reason"
+              echo "4. Recommended Fix"
+              echo "5. Whether this looks like an application defect, test automation issue, or environment issue."
+            } > reports/ai-prompt.txt
+
+            ollama run llama3.2:3b < reports/ai-prompt.txt > reports/ai-analysis.txt
+
+            echo "AI analysis generated."
+
+          else
+            echo "No failed tests. Skipping AI analysis."
+
+            mkdir -p reports
+
+            cat > reports/ai-analysis.txt <<'EOF'
+          No failed tests. AI failure analysis was not required.
+          EOF
+          fi
+
+      # ==============================
+      # ARTIFACTS
+      # ==============================
 
       - name: Upload Allure Results
         if: always()
@@ -65,13 +148,35 @@ jobs:
           name: allure-results
           path: reports/allure-report
 
+      - name: Upload AI Analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-test-analysis
+          path: |
+            reports/ai-analysis.txt
+            reports/test_summary.txt
+            reports/playwright-output.log
+
+      - name: Fail workflow if tests failed
+        if: always() && steps.login_test.outputs.failed > 0
+        run: exit 1
+
   send-slack-card:
     runs-on: ubuntu-latest
     needs: playwright-docker
     if: always()
+
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download AI Analysis
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-test-analysis
+          path: reports
 
       - name: Send Slack Adaptive Card
         env:

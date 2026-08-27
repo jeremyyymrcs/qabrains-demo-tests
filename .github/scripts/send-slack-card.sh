@@ -1,113 +1,105 @@
 #!/bin/bash
+
 set -e
 
-# URL to the current GitHub Actions run
 run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-# Prepare Slack JSON payload
-json_payload=$(cat <<EOF
-{
-  "blocks": [
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Test Summary:*"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Status:* ${RESULT_STATUS}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "✅ *Passed:* ${PASSED}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "❌ *Failed:* ${FAILED}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🧪 *Total Tests:* ${TOTAL}"
-      }
-    },
-    {
-      "type": "divider"
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Details:*"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "📂 *Branch:* ${BRANCH}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🔢 *Commit Hash:* \`${COMMIT_HASH}\`"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "💬 *Commit Message:* ${COMMIT_MESSAGE}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "👤 *Actor:* ${ACTOR}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🕒 *Date/Time:* ${DATE_TIME}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "📄 <${run_url}|View Allure Report>"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "\n\n"
-      }
-    }
-  ]
-}
-EOF
-)
+AI_ANALYSIS="No AI analysis available."
 
-# Send payload to Slack
+if [ -f "reports/ai-analysis.txt" ]; then
+  AI_ANALYSIS=$(cat reports/ai-analysis.txt)
+fi
+
+export RUN_URL="$run_url"
+export AI_ANALYSIS
+
+python3 <<'PY' > /tmp/slack_payload.json
+import json
+import os
+
+payload = {
+    "blocks": [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*🤖 QA Brains Test Summary*"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Status:* {os.environ.get('RESULT_STATUS', '')}"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"✅ *Passed:* {os.environ.get('PASSED', '0')}\n"
+                    f"❌ *Failed:* {os.environ.get('FAILED', '0')}\n"
+                    f"🧪 *Total Tests:* {os.environ.get('TOTAL', '0')}"
+                )
+            }
+        },
+        {
+            "type": "divider"
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*📋 Details*"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"📂 *Branch:* {os.environ.get('BRANCH', '')}\n"
+                    f"🔢 *Commit:* `{os.environ.get('COMMIT_HASH', '')}`\n"
+                    f"💬 *Commit Message:* {os.environ.get('COMMIT_MESSAGE', '')}\n"
+                    f"👤 *Actor:* {os.environ.get('ACTOR', '')}\n"
+                    f"🕒 *Date/Time:* {os.environ.get('DATE_TIME', '')}"
+                )
+            }
+        },
+        {
+            "type": "divider"
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*🤖 AI Failure Analysis*"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": os.environ.get("AI_ANALYSIS", "")
+            }
+        },
+        {
+            "type": "divider"
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"📄 <{os.environ.get('RUN_URL', '')}|View GitHub Actions Run>"
+            }
+        }
+    ]
+}
+
+print(json.dumps(payload))
+PY
+
 curl -X POST "$SLACK_WEBHOOK_URL" \
      -H "Content-Type: application/json" \
-     -d "$json_payload"
+     --data-binary @/tmp/slack_payload.json
