@@ -96,7 +96,7 @@ json_payload=$(cat <<EOF
         "type": "mrkdwn",
         "text": "*🤖 AI Failure Analysis:*\n${AI_ANALYSIS}"
       }
-    }
+    },
     {
       "type": "section",
       "text": {
