@@ -43,6 +43,17 @@ else
   echo "No Playwright log found"
 fi
 
+# Detect pytest failures/errors from the log
+if grep -Eq '[0-9]+ error(s)?' reports/playwright.log; then
+  echo "❌ Pytest reported an error"
+  FAILED=1
+fi
+
+if grep -Eq '[0-9]+ failed' reports/playwright.log; then
+  echo "❌ Pytest reported a failed test"
+  FAILED=1
+fi
+
 # Determine result using both summary and exit code
 if [ "$FAILED" -gt 0 ] || [ "$EXIT_CODE" -ne 0 ]; then
   RESULT_STATUS="⚠️ Status: Failure"
