@@ -4,6 +4,8 @@ set -e
 # URL to the current GitHub Actions run
 run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
+AI_ANALYSIS=$(cat reports/ai_analysis.txt 2>/dev/null || echo "No AI analysis available")
+
 # Prepare Slack JSON payload
 json_payload=$(cat <<EOF
 {
@@ -88,6 +90,13 @@ json_payload=$(cat <<EOF
         "text": "🕒 *Date/Time:* ${DATE_TIME}"
       }
     },
+        {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*🤖 AI Failure Analysis:*\n${AI_ANALYSIS}"
+      }
+    }
     {
       "type": "section",
       "text": {

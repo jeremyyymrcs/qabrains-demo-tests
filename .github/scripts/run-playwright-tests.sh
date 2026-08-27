@@ -1,10 +1,20 @@
 #!/bin/bash
+#!/bin/bash
 set -e
 
-# Run container in foreground and capture exit code
-docker run --name playwright-container --env-file .env playwright-test:latest
+mkdir -p reports
+
+set +e
+docker run \
+  --name playwright-container \
+  --env-file .env \
+  playwright-test:latest \
+  > reports/playwright.log 2>&1
 
 EXIT_CODE=$?
+set -e
+
+echo "Docker exit code: $EXIT_CODE"
 
 # Copy reports after container exits
 mkdir -p reports/allure-report
@@ -25,6 +35,14 @@ fi
 echo "Total: $TOTAL"
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
+
+echo "=== Playwright Failure Log ==="
+
+if [ -f "./reports/playwright.log" ]; then
+  cat reports/playwright.log
+else
+  echo "No Playwright log found"
+fi
 
 # Determine result using both summary and exit code
 if [ "$FAILED" -gt 0 ] || [ "$EXIT_CODE" -ne 0 ]; then
