@@ -53,9 +53,16 @@ jobs:
 
       - name: Run Playwright tests inside Docker
         id: login_test
+        continue-on-error: true
         run: |
           sed -i 's/\r$//' .github/scripts/run-playwright-tests.sh
           bash .github/scripts/run-playwright-tests.sh
+
+      - name: Fail workflow if tests failed
+        if: steps.login_test.outcome == 'failure'
+        run: |
+          echo "❌ Playwright tests failed."
+          exit 1
 
       - name: Upload Test Results
         if: always()
