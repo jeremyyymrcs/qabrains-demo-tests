@@ -73,9 +73,6 @@ jobs:
 
   ai-failure-analysis:
     runs-on: ubuntu-latest
-    needs: playwright-docker
-    if: fromJSON(needs.playwright-docker.outputs.failed) > 0
-
     steps:
 
       - name: Download Test Results
