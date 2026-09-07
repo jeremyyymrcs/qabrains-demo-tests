@@ -9,15 +9,35 @@ PROMPT_FILE="reports/ai-failure-analysis.prompt"
 
 mkdir -p reports
 
-OLLAMA_BIN="$(command -v ollama || true)"
+find_ollama() {
+  local candidate
+
+  for candidate in \
+    "$(command -v ollama 2>/dev/null || true)" \
+    /usr/local/bin/ollama \
+    /usr/bin/ollama \
+    "${HOME}/.ollama/bin/ollama"; do
+    if [[ -n "${candidate}" && -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  find /usr/local /usr/bin "${HOME}/.ollama" \
+    -type f -name ollama -perm -111 -print -quit 2>/dev/null || true
+}
+
+OLLAMA_BIN="$(find_ollama)"
 if [[ -z "${OLLAMA_BIN}" ]]; then
   curl --fail --silent --show-error https://ollama.com/install.sh | sh
+  hash -r 2>/dev/null || true
   export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${PATH}"
-  OLLAMA_BIN="$(command -v ollama || true)"
+  OLLAMA_BIN="$(find_ollama)"
 fi
 
 if [[ -z "${OLLAMA_BIN}" ]]; then
-  echo "Ollama installation completed, but the ollama executable was not found on PATH." >&2
+  echo "Ollama installation completed, but no executable was found in standard install locations." >&2
+  echo "PATH=${PATH}" >&2
   exit 1
 fi
 
