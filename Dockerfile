@@ -5,13 +5,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build tools and system dependencies needed for installing packages and Playwright
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-        libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
-        libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
-        libx11-xcb1 libxss1 ca-certificates wget unzip \
-        openjdk-11-jre-headless curl tar \
+    build-essential \
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
+    libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
+    libx11-xcb1 libxss1 ca-certificates wget unzip \
+    openjdk-11-jre-headless curl tar \
     && rm -rf /var/lib/apt/lists/*
+
+# Clean up apt cache
+RUN apt-get clean && apt-get autoremove -y
+
+# Clean up Docker image
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
