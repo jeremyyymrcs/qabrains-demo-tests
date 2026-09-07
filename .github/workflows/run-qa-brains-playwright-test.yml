@@ -39,7 +39,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t playwright-test:latest .
+        id: build_image
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          docker build -t playwright-test:latest . 2>&1 | tee reports/docker_build.log
 
       - name: Create .env file for Docker
         run: |
@@ -58,7 +62,9 @@ jobs:
           bash .github/scripts/run-playwright-tests.sh
 
       - name: Analyze test failure with local Ollama
-        if: steps.login_test.outcome == 'failure'
+        if: |
+          failure() &&
+          (steps.build_image.outcome == 'failure' || steps.login_test.outcome == 'failure')
         continue-on-error: true
         env:
           OLLAMA_MODEL: qwen2.5:3b
@@ -82,6 +88,7 @@ jobs:
           name: test-failure-analysis
           path: |
             reports/ai-failure-analysis.md
+            reports/docker_build.log
             reports/test_output.log
             reports/test_summary.txt
             reports/ollama.log

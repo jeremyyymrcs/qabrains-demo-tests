@@ -32,7 +32,8 @@ ollama pull "${MODEL}"
 {
   cat <<'EOF'
 You are a senior Playwright and CI troubleshooting engineer.
-Analyze the failed GitHub Actions test run below. Do not invent facts.
+Analyze the failed GitHub Actions Docker build or Playwright test run below.
+Do not invent facts.
 
 Respond in Markdown with exactly these sections:
 ## Probable root cause
@@ -43,6 +44,15 @@ Respond in Markdown with exactly these sections:
 Keep the analysis practical and concise. Distinguish test defects, application defects,
 environment problems, and flaky timing/network problems. Include the failing test or
 locator when the log provides it.
+
+Docker build output:
+EOF
+  if [[ -f reports/docker_build.log ]]; then
+    tail -c 16000 reports/docker_build.log
+  else
+    printf '%s\n' "No Docker build output was produced."
+  fi
+  cat <<'EOF'
 
 Test summary:
 EOF
