@@ -1,113 +1,108 @@
 #!/bin/bash
+
 set -e
 
-# URL to the current GitHub Actions run
-run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+echo "Preparing Slack notification..."
 
-# Prepare Slack JSON payload
-json_payload=$(cat <<EOF
+AI_CATEGORY="${AI_CATEGORY:-No AI analysis}"
+AI_SUMMARY="${AI_SUMMARY:-No AI analysis available.}"
+
+RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}"
+
+# Safely JSON encode values
+json_escape() {
+  python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
+}
+
+AI_CATEGORY_JSON=$(printf '%s' "$AI_CATEGORY" | json_escape)
+AI_SUMMARY_JSON=$(printf '%s' "$AI_SUMMARY" | json_escape)
+
+COMMIT_MESSAGE_JSON=$(printf '%s' "${COMMIT_MESSAGE:-}" | json_escape)
+
+PAYLOAD=$(cat <<EOF
 {
   "blocks": [
     {
+      "type": "header",
+      "text": {
+        "type": "plain_text",
+        "text": "Playwright Test Result"
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Status:*\n${RESULT_STATUS}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Total:*\n${TOTAL}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Passed:*\n${PASSED}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Failed:*\n${FAILED}"
+        }
+      ]
+    },
+    {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "*Test Summary:*"
+        "text": "*AI Failure Category:*\n${AI_CATEGORY_JSON}"
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "*Status:* ${RESULT_STATUS}"
+        "text": "*AI Analysis:*\n${AI_SUMMARY_JSON}"
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "✅ *Passed:* ${PASSED}"
+        "text": "*Branch:* ${BRANCH}\n*Actor:* ${ACTOR}"
       }
     },
     {
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "❌ *Failed:* ${FAILED}"
+        "text": "*Commit:*\n${COMMIT_MESSAGE_JSON}"
       }
     },
     {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🧪 *Total Tests:* ${TOTAL}"
-      }
-    },
-    {
-      "type": "divider"
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Details:*"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "📂 *Branch:* ${BRANCH}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🔢 *Commit Hash:* \`${COMMIT_HASH}\`"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "💬 *Commit Message:* ${COMMIT_MESSAGE}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "👤 *Actor:* ${ACTOR}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "🕒 *Date/Time:* ${DATE_TIME}"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "📄 <${run_url}|View Allure Report>"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "\n\n"
-      }
+      "type": "actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "View GitHub Actions"
+          },
+          "url": "${RUN_URL}"
+        }
+      ]
     }
   ]
 }
 EOF
 )
 
-# Send payload to Slack
-curl -X POST "$SLACK_WEBHOOK_URL" \
-     -H "Content-Type: application/json" \
-     -d "$json_payload"
+echo "Sending Slack notification..."
+
+curl -sS \
+  -X POST \
+  -H "Content-Type: application/json" \
+  --data "$PAYLOAD" \
+  "$SLACK_WEBHOOK_URL"
+
+echo ""
+echo "Slack notification sent."

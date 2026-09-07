@@ -9,6 +9,7 @@ on:
       event_type:
         required: false
         type: string
+
     secrets:
       HEADLESS_SCREEN_WIDTH:
         required: true
@@ -22,67 +23,248 @@ on:
         required: true
       PASSWORD:
         required: true
+      SLACK_WEBHOOK_URL:
+        required: true
 
 jobs:
+
+  # ============================================================
+  # 1. PLAYWRIGHT TESTS
+  # ============================================================
   playwright-docker:
+
     runs-on: ubuntu-latest
 
     outputs:
-      result_status: ${{ steps.login_test.outputs.result_status }}
-      passed: ${{ steps.login_test.outputs.passed }}
-      failed: ${{ steps.login_test.outputs.failed }}
-      total: ${{ steps.login_test.outputs.total }}
+      result_status: ${{ steps.results.outputs.result_status }}
+      passed: ${{ steps.results.outputs.passed }}
+      failed: ${{ steps.results.outputs.failed }}
+      total: ${{ steps.results.outputs.total }}
 
     steps:
 
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t playwright-test:latest .
-
-      - name: Create .env file for Docker
+      - name: Build Playwright Docker image
         run: |
-          echo "HEADLESS_SCREEN_WIDTH=${{ secrets.HEADLESS_SCREEN_WIDTH }}" >> .env
-          echo "HEADLESS_SCREEN_HEIGHT=${{ secrets.HEADLESS_SCREEN_HEIGHT }}" >> .env
-          echo "HEADLESS=${{ secrets.HEADLESS }}" >> .env
-          echo "QA_BRAINS_URL=${{ secrets.QA_BRAINS_URL }}" >> .env
-          echo "EMAIL=${{ secrets.EMAIL }}" >> .env
-          echo "PASSWORD=${{ secrets.PASSWORD }}" >> .env
-        shell: bash
+          docker build \
+            -t playwright-test:latest \
+            .
 
-      - name: Run Playwright tests inside Docker
-        id: login_test
+      - name: Create environment file
         run: |
-          sed -i 's/\r$//' .github/scripts/run-playwright-tests.sh
-          bash .github/scripts/run-playwright-tests.sh
+          cat > .env <<EOF
+          HEADLESS_SCREEN_WIDTH=${{ secrets.HEADLESS_SCREEN_WIDTH }}
+          HEADLESS_SCREEN_HEIGHT=${{ secrets.HEADLESS_SCREEN_HEIGHT }}
+          HEADLESS=${{ secrets.HEADLESS }}
+          QA_BRAINS_URL=${{ secrets.QA_BRAINS_URL }}
+          EMAIL=${{ secrets.EMAIL }}
+          PASSWORD=${{ secrets.PASSWORD }}
+          EOF
 
-      - name: Upload Allure Results
+      - name: Run Playwright tests
+        id: run_tests
+        run: |
+          chmod +x .github/scripts/run-playwright-tests.sh
+          .github/scripts/run-playwright-tests.sh
+
+      - name: Upload Allure report
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results
+          name: allure-report
           path: reports/allure-report
+          if-no-files-found: warn
 
-  send-slack-card:
-    runs-on: ubuntu-latest
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary
+          path: reports/test_summary.txt
+          if-no-files-found: warn
+
+      - name: Upload Playwright logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-logs
+          path: |
+            reports/
+            test-results/
+          if-no-files-found: warn
+
+      - name: Set test results
+        id: results
+        if: always()
+        run: |
+          if [ -f reports/test_summary.txt ]; then
+            TOTAL=$(awk -F: '/Total/ {gsub(/ /,"",$2); print $2}' reports/test_summary.txt)
+            PASSED=$(awk -F: '/Passed/ {gsub(/ /,"",$2); print $2}' reports/test_summary.txt)
+            FAILED=$(awk -F: '/Failed/ {gsub(/ /,"",$2); print $2}' reports/test_summary.txt)
+          else
+            TOTAL=0
+            PASSED=0
+            FAILED=0
+          fi
+
+          if [ "${FAILED:-0}" -gt 0 ]; then
+            STATUS="FAILED"
+          else
+            STATUS="PASSED"
+          fi
+
+          echo "result_status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "passed=${PASSED:-0}" >> "$GITHUB_OUTPUT"
+          echo "failed=${FAILED:-0}" >> "$GITHUB_OUTPUT"
+          echo "total=${TOTAL:-0}" >> "$GITHUB_OUTPUT"
+
+  # ============================================================
+  # 2. AI FAILURE ANALYSIS
+  # ============================================================
+  ai-analysis:
+
     needs: playwright-docker
-    if: always()
+
+    if: ${{ needs.playwright-docker.result == 'failure' }}
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+
+    outputs:
+      summary: ${{ steps.analyze.outputs.summary }}
+      category: ${{ steps.analyze.outputs.category }}
+
     steps:
-      - name: Checkout code
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Send Slack Adaptive Card
+      # --------------------------------------------------------
+      # Install Ollama
+      # --------------------------------------------------------
+      - name: Install Ollama
+        shell: bash
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      # --------------------------------------------------------
+      # Start Ollama
+      # --------------------------------------------------------
+      - name: Start Ollama
+        shell: bash
+        run: |
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+
+          echo "Waiting for Ollama..."
+
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:11434/api/tags > /dev/null; then
+              echo "Ollama is ready."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Ollama failed to start."
+          cat /tmp/ollama.log
+          exit 1
+
+      # --------------------------------------------------------
+      # Pull model
+      # --------------------------------------------------------
+      - name: Pull AI model
+        run: |
+          ollama pull llama3.1:8b
+
+      # --------------------------------------------------------
+      # Verify model
+      # --------------------------------------------------------
+      - name: Verify Ollama model
+        run: |
+          ollama list
+
+      # --------------------------------------------------------
+      # AI Failure Analysis
+      # --------------------------------------------------------
+      - name: Analyze Playwright failure with AI
+        id: analyze
+        uses: calebevans/gha-failure-analysis@v1
+        with:
+          llm-provider: ollama
+          llm-model: llama3.1:8b
+          llm-base-url: http://127.0.0.1:11434
+          post-pr-comment: true
+
+      # --------------------------------------------------------
+      # Save AI report
+      # --------------------------------------------------------
+      - name: Save AI analysis
+        if: always()
+        run: |
+          mkdir -p reports
+
+          cat > reports/ai-analysis.txt <<EOF
+          Category:
+          ${{ steps.analyze.outputs.category }}
+
+          Summary:
+          ${{ steps.analyze.outputs.summary }}
+          EOF
+
+      - name: Upload AI analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-failure-analysis
+          path: reports/ai-analysis.txt
+          if-no-files-found: warn
+
+  # ============================================================
+  # 3. SLACK NOTIFICATION
+  # ============================================================
+  send-slack-card:
+
+    needs:
+      - playwright-docker
+      - ai-analysis
+
+    if: always()
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Send Slack notification
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          BRANCH: ${{ github.ref_name }}
-          COMMIT_HASH: ${{ github.sha }}
-          COMMIT_MESSAGE: ${{ inputs.commit_message }}
-          ACTOR: ${{ github.actor }}
+
           RESULT_STATUS: ${{ needs.playwright-docker.outputs.result_status }}
           PASSED: ${{ needs.playwright-docker.outputs.passed }}
           FAILED: ${{ needs.playwright-docker.outputs.failed }}
           TOTAL: ${{ needs.playwright-docker.outputs.total }}
-          DATE_TIME: ${{ github.event.head_commit.timestamp || github.event.pushed_at || github.event.workflow_run.created_at }}
-        run: bash .github/scripts/send-slack-card.sh
+
+          AI_CATEGORY: ${{ needs.ai-analysis.outputs.category }}
+          AI_SUMMARY: ${{ needs.ai-analysis.outputs.summary }}
+
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ inputs.commit_message }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+
+        run: |
+          chmod +x .github/scripts/send-slack-card.sh
+          .github/scripts/send-slack-card.sh
