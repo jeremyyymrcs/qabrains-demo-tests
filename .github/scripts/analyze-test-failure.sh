@@ -9,12 +9,20 @@ PROMPT_FILE="reports/ai-failure-analysis.prompt"
 
 mkdir -p reports
 
-if ! command -v ollama >/dev/null 2>&1; then
+OLLAMA_BIN="$(command -v ollama || true)"
+if [[ -z "${OLLAMA_BIN}" ]]; then
   curl --fail --silent --show-error https://ollama.com/install.sh | sh
+  export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${PATH}"
+  OLLAMA_BIN="$(command -v ollama || true)"
+fi
+
+if [[ -z "${OLLAMA_BIN}" ]]; then
+  echo "Ollama installation completed, but the ollama executable was not found on PATH." >&2
+  exit 1
 fi
 
 if ! curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
-  OLLAMA_HOST="${OLLAMA_HOST}" ollama serve >"${OLLAMA_LOG}" 2>&1 &
+  OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" serve >"${OLLAMA_LOG}" 2>&1 &
   OLLAMA_PID=$!
   trap 'kill "${OLLAMA_PID}" 2>/dev/null || true' EXIT
 
@@ -27,7 +35,7 @@ if ! curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
 fi
 
 curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null
-ollama pull "${MODEL}"
+"${OLLAMA_BIN}" pull "${MODEL}"
 
 {
   cat <<'EOF'
@@ -78,7 +86,7 @@ EOF
   echo
   echo "_Model: \`${MODEL}\` (local Ollama runner; generated only after a test failure)._"
   echo
-  OLLAMA_HOST="${OLLAMA_HOST}" ollama run "${MODEL}" < "${PROMPT_FILE}"
+  OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" run "${MODEL}" < "${PROMPT_FILE}"
 } > "${ANALYSIS_FILE}"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

@@ -101,6 +101,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download AI failure analysis
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: test-failure-analysis
+          path: test-failure-analysis
+
       - name: Send Slack Adaptive Card
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
