@@ -6,6 +6,7 @@ OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
 OLLAMA_LOG="reports/ollama.log"
 ANALYSIS_FILE="reports/ai-failure-analysis.md"
 PROMPT_FILE="reports/ai-failure-analysis.prompt"
+RAW_ANALYSIS_FILE="reports/ai-failure-analysis.raw"
 
 mkdir -p reports
 cat > "${ANALYSIS_FILE}" <<'EOF'
@@ -24,6 +25,7 @@ find_ollama() {
     /usr/bin/ollama \
     "${HOME}/.ollama/bin/ollama" \
     "${HOME}/.local/bin/ollama" \
+    "${HOME}/.local/ollama/bin/ollama" \
     "${RUNNER_TEMP:-/tmp}/ollama/bin/ollama"; do
     if [[ -n "${candidate}" && -x "${candidate}" ]]; then
       printf '%s\n' "${candidate}"
@@ -45,7 +47,7 @@ if [[ -z "${OLLAMA_BIN}" ]]; then
 fi
 
 if [[ -z "${OLLAMA_BIN}" ]]; then
-  OLLAMA_INSTALL_DIR="${RUNNER_TEMP:-/tmp}/ollama"
+  OLLAMA_INSTALL_DIR="${HOME}/.local/ollama"
   OLLAMA_ARCHIVE="${RUNNER_TEMP:-/tmp}/ollama-linux-amd64.tar.zst"
   mkdir -p "${OLLAMA_INSTALL_DIR}"
 
@@ -144,8 +146,23 @@ EOF
   echo
   echo "_Model: \`${MODEL}\` (local Ollama runner; generated only after a test failure)._"
   echo
-  OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" run "${MODEL}" < "${PROMPT_FILE}"
 } > "${ANALYSIS_FILE}"
+
+# Keep Ollama diagnostics out of the Markdown response and remove terminal control
+# sequences that can otherwise appear as characters such as "�[1D�[K".
+OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" run "${MODEL}" \
+  < "${PROMPT_FILE}" \
+  > "${RAW_ANALYSIS_FILE}" \
+  2>> "${OLLAMA_LOG}"
+
+perl -pe '
+  s/\e\[[0-?]*[ -\/]*[@-~]//g;
+  s/\e\][^\a]*(?:\a|\e\\)//g;
+  s/\r//g;
+  s/\x08//g;
+  s/\x1b//g;
+  s/[^\x09\x0A\x0D\x20-\x7E]/?/g;
+' "${RAW_ANALYSIS_FILE}" >> "${ANALYSIS_FILE}"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   cat "${ANALYSIS_FILE}" >> "${GITHUB_STEP_SUMMARY}"

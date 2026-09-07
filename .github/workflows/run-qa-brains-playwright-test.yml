@@ -66,6 +66,18 @@ jobs:
           always() &&
           (steps.build_image.outcome == 'failure' || steps.login_test.outcome == 'failure')
         continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ollama
+            ~/.local/ollama
+          key: ollama-${{ runner.os }}-qwen2.5-3b-v1
+
+      - name: Run Ollama failure analysis
+        if: |
+          always() &&
+          (steps.build_image.outcome == 'failure' || steps.login_test.outcome == 'failure')
+        continue-on-error: true
         env:
           OLLAMA_MODEL: qwen2.5:3b
         run: |
