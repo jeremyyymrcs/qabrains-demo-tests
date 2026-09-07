@@ -8,6 +8,12 @@ ANALYSIS_FILE="reports/ai-failure-analysis.md"
 PROMPT_FILE="reports/ai-failure-analysis.prompt"
 
 mkdir -p reports
+cat > "${ANALYSIS_FILE}" <<'EOF'
+# AI failure analysis
+
+Ollama analysis did not complete. See the `ollama.log`, Docker build log, and test
+output in the `test-failure-analysis` artifact for details.
+EOF
 
 find_ollama() {
   local candidate
@@ -29,7 +35,8 @@ find_ollama() {
 
 OLLAMA_BIN="$(find_ollama)"
 if [[ -z "${OLLAMA_BIN}" ]]; then
-  curl --fail --silent --show-error https://ollama.com/install.sh | sh
+  curl --fail --silent --show-error https://ollama.com/install.sh |
+    sh 2>&1 | tee reports/ollama-install.log
   hash -r 2>/dev/null || true
   export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${PATH}"
   OLLAMA_BIN="$(find_ollama)"

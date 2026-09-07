@@ -63,7 +63,7 @@ jobs:
 
       - name: Analyze test failure with local Ollama
         if: |
-          failure() &&
+          always() &&
           (steps.build_image.outcome == 'failure' || steps.login_test.outcome == 'failure')
         continue-on-error: true
         env:
@@ -92,6 +92,7 @@ jobs:
             reports/test_output.log
             reports/test_summary.txt
             reports/ollama.log
+            reports/ollama-install.log
 
   send-slack-card:
     runs-on: ubuntu-latest
