@@ -22,23 +22,35 @@ find_ollama() {
     "$(command -v ollama 2>/dev/null || true)" \
     /usr/local/bin/ollama \
     /usr/bin/ollama \
-    "${HOME}/.ollama/bin/ollama"; do
+    "${HOME}/.ollama/bin/ollama" \
+    "${HOME}/.local/bin/ollama" \
+    "${RUNNER_TEMP:-/tmp}/ollama/bin/ollama"; do
     if [[ -n "${candidate}" && -x "${candidate}" ]]; then
       printf '%s\n' "${candidate}"
       return 0
     fi
   done
 
-  find /usr/local /usr/bin "${HOME}/.ollama" \
+  find /usr/local /usr/bin "${HOME}/.ollama" "${HOME}/.local" "${RUNNER_TEMP:-/tmp}/ollama" \
     -type f -name ollama -perm -111 -print -quit 2>/dev/null || true
 }
 
 OLLAMA_BIN="$(find_ollama)"
 if [[ -z "${OLLAMA_BIN}" ]]; then
   curl --fail --silent --show-error https://ollama.com/install.sh |
-    sh 2>&1 | tee reports/ollama-install.log
+    sh 2>&1 | tee reports/ollama-install.log || true
   hash -r 2>/dev/null || true
-  export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${PATH}"
+  export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${HOME}/.local/bin:${PATH}"
+  OLLAMA_BIN="$(find_ollama)"
+fi
+
+if [[ -z "${OLLAMA_BIN}" ]]; then
+  OLLAMA_INSTALL_DIR="${RUNNER_TEMP:-/tmp}/ollama"
+  mkdir -p "${OLLAMA_INSTALL_DIR}"
+  curl --fail --silent --show-error \
+    https://ollama.com/download/ollama-linux-amd64.tgz |
+    tar -xzf - -C "${OLLAMA_INSTALL_DIR}"
+  chmod +x "${OLLAMA_INSTALL_DIR}/bin/ollama" 2>/dev/null || true
   OLLAMA_BIN="$(find_ollama)"
 fi
 
