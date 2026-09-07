@@ -57,6 +57,15 @@ jobs:
           sed -i 's/\r$//' .github/scripts/run-playwright-tests.sh
           bash .github/scripts/run-playwright-tests.sh
 
+      - name: Analyze test failure with local Ollama
+        if: steps.login_test.outcome == 'failure'
+        continue-on-error: true
+        env:
+          OLLAMA_MODEL: qwen2.5:3b
+        run: |
+          sed -i 's/\r$//' .github/scripts/analyze-test-failure.sh
+          bash .github/scripts/analyze-test-failure.sh
+
       - name: Upload Allure Results
         if: always()
         continue-on-error: true
@@ -64,6 +73,18 @@ jobs:
         with:
           name: allure-results
           path: reports/allure-report
+
+      - name: Upload failure analysis
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failure-analysis
+          path: |
+            reports/ai-failure-analysis.md
+            reports/test_output.log
+            reports/test_summary.txt
+            reports/ollama.log
 
   send-slack-card:
     runs-on: ubuntu-latest
