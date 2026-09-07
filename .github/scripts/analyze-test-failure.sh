@@ -46,10 +46,29 @@ fi
 
 if [[ -z "${OLLAMA_BIN}" ]]; then
   OLLAMA_INSTALL_DIR="${RUNNER_TEMP:-/tmp}/ollama"
+  OLLAMA_ARCHIVE="${RUNNER_TEMP:-/tmp}/ollama-linux-amd64.tar.zst"
   mkdir -p "${OLLAMA_INSTALL_DIR}"
-  curl --fail --silent --show-error \
-    https://ollama.com/download/ollama-linux-amd64.tgz |
-    tar -xzf - -C "${OLLAMA_INSTALL_DIR}"
+
+  download_ollama() {
+    local url="$1"
+    rm -f "${OLLAMA_ARCHIVE}"
+    curl --fail --location --retry 4 --retry-delay 3 --silent --show-error \
+      "${url}" --output "${OLLAMA_ARCHIVE}" &&
+      [[ -s "${OLLAMA_ARCHIVE}" ]] &&
+      tar --zstd -tf "${OLLAMA_ARCHIVE}" >/dev/null 2>&1
+  }
+
+  if ! download_ollama "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tar.zst"; then
+    echo "Unable to download a valid Ollama Linux archive from either source." >&2
+    exit 1
+  fi
+
+  if [[ ! -s "${OLLAMA_ARCHIVE}" ]] || ! tar --zstd -tf "${OLLAMA_ARCHIVE}" >/dev/null 2>&1; then
+    echo "Unable to download a valid Ollama Linux archive." >&2
+    exit 1
+  fi
+
+  tar --zstd -xf "${OLLAMA_ARCHIVE}" -C "${OLLAMA_INSTALL_DIR}"
   chmod +x "${OLLAMA_INSTALL_DIR}/bin/ollama" 2>/dev/null || true
   OLLAMA_BIN="$(find_ollama)"
 fi
