@@ -17,11 +17,13 @@ class TestLogin(BaseTest):
         login is unsuccessful or the login page behavior changes.
     """)
     @pytest.mark.positive
+    @pytest.mark.skip_auto_login
     def test_successful_login(self):
         """
         This is Automatic Login from BaseTest
         Test to verify successful login
         """
+        self.login_page.successful_login(Config.EMAIL, Config.PASSWORD)
 
     @allure.title("Login Test with Invalid Password")
     @allure.story("User cannot log in with invalid password")
