@@ -17,11 +17,14 @@ on:
       - main
       - development
       - 'feature-*'
+      - 'enhancement-*'
+
   pull_request:
     branches:
       - main
       - development
       - 'feature-*'
+      - 'enhancement-*'
 
 jobs:
   run-playwright:
