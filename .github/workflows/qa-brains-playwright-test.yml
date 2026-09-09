@@ -2,7 +2,7 @@ name: QA Brains Playwright Test
 
 on:
   schedule:
-    - cron: '0 11 * * *'  # Every day at 7:00 PM PH time
+    - cron: '0 8 * * *'  # Every day at 4:00 PM PHT
 
   workflow_dispatch:
     inputs:
