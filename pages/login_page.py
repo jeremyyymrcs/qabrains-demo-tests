@@ -10,7 +10,7 @@ class LoginPage(ActionHandler):
     email = Common.email()
     password = Common.password()
     login_button = Common.submit()
-    login_successful_message = XPath.header_normalize('Login Successful')
+    login_successful_message = XPath.header_normalize('Login Successful Failed Test')
     password_is_invalid = XPath.span_normalize_space('Your password is invalid!')
 
     @allure.step('Enter Credentials')

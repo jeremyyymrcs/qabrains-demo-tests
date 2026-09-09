@@ -1,173 +1,90 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Configuration
 MODEL="${OLLAMA_MODEL:-qwen2.5:3b}"
-OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
-OLLAMA_LOG="reports/ollama.log"
-ANALYSIS_FILE="reports/ai-failure-analysis.md"
-PROMPT_FILE="reports/ai-failure-analysis.prompt"
-RAW_ANALYSIS_FILE="reports/ai-failure-analysis.raw"
+export OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
+REPORT_DIR="reports"
+ANALYSIS_FILE="${REPORT_DIR}/ai-failure-analysis.md"
+OLLAMA_LOG="${REPORT_DIR}/ollama.log"
+PROMPT_FILE="${REPORT_DIR}/ai-failure-analysis.prompt"
 
-mkdir -p reports
-cat > "${ANALYSIS_FILE}" <<'EOF'
-Ollama analysis did not complete. See the `ollama.log`, Docker build log, and test
-output in the `test-failure-analysis` artifact for details.
-EOF
+OLLAMA_READY_TIMEOUT=60
+MAX_LOG_BYTES=16000
 
-find_ollama() {
-  local candidate
+mkdir -p "${REPORT_DIR}"
 
-  for candidate in \
-    "$(command -v ollama 2>/dev/null || true)" \
-    /usr/local/bin/ollama \
-    /usr/bin/ollama \
-    "${HOME}/.ollama/bin/ollama" \
-    "${HOME}/.local/bin/ollama" \
-    "${HOME}/.local/ollama/bin/ollama" \
-    "${RUNNER_TEMP:-/tmp}/ollama/bin/ollama"; do
-    if [[ -n "${candidate}" && -x "${candidate}" ]]; then
-      printf '%s\n' "${candidate}"
-      return 0
-    fi
-  done
+log() { echo "[AI Analysis] $*"; }
 
-  find /usr/local /usr/bin "${HOME}/.ollama" "${HOME}/.local" "${RUNNER_TEMP:-/tmp}/ollama" \
-    -type f -name ollama -perm -111 -print -quit 2>/dev/null || true
+wait_for_ollama() {
+    for ((i=0; i<OLLAMA_READY_TIMEOUT; i+=2)); do
+        curl -fsS "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1 && return 0
+        sleep 2
+    done
+    return 1
 }
 
-OLLAMA_BIN="$(find_ollama)"
-if [[ -z "${OLLAMA_BIN}" ]]; then
-  curl --fail --silent --show-error https://ollama.com/install.sh |
-    sh 2>&1 | tee reports/ollama-install.log || true
-  hash -r 2>/dev/null || true
-  export PATH="/usr/local/bin:/usr/bin:${HOME}/.ollama/bin:${HOME}/.local/bin:${PATH}"
-  OLLAMA_BIN="$(find_ollama)"
-fi
-
-if [[ -z "${OLLAMA_BIN}" ]]; then
-  OLLAMA_INSTALL_DIR="${HOME}/.local/ollama"
-  OLLAMA_ARCHIVE="${RUNNER_TEMP:-/tmp}/ollama-linux-amd64.tar.zst"
-  mkdir -p "${OLLAMA_INSTALL_DIR}"
-
-  download_ollama() {
-    local url="$1"
-    rm -f "${OLLAMA_ARCHIVE}"
-    curl --fail --location --retry 4 --retry-delay 3 --silent --show-error \
-      "${url}" --output "${OLLAMA_ARCHIVE}" &&
-      [[ -s "${OLLAMA_ARCHIVE}" ]] &&
-      tar --zstd -tf "${OLLAMA_ARCHIVE}" >/dev/null 2>&1
-  }
-
-  if ! download_ollama "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tar.zst"; then
-    echo "Unable to download a valid Ollama Linux archive from either source." >&2
-    exit 1
-  fi
-
-  if [[ ! -s "${OLLAMA_ARCHIVE}" ]] || ! tar --zstd -tf "${OLLAMA_ARCHIVE}" >/dev/null 2>&1; then
-    echo "Unable to download a valid Ollama Linux archive." >&2
-    exit 1
-  fi
-
-  tar --zstd -xf "${OLLAMA_ARCHIVE}" -C "${OLLAMA_INSTALL_DIR}"
-  chmod +x "${OLLAMA_INSTALL_DIR}/bin/ollama" 2>/dev/null || true
-  OLLAMA_BIN="$(find_ollama)"
-fi
-
-if [[ -z "${OLLAMA_BIN}" ]]; then
-  echo "Ollama installation completed, but no executable was found in standard install locations." >&2
-  echo "PATH=${PATH}" >&2
-  exit 1
-fi
-
-if ! curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
-  OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" serve >"${OLLAMA_LOG}" 2>&1 &
-  OLLAMA_PID=$!
-  trap 'kill "${OLLAMA_PID}" 2>/dev/null || true' EXIT
-
-  for _ in {1..30}; do
-    if curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
-      break
+setup_ollama() {
+    if ! command -v ollama >/dev/null 2>&1; then
+        log "Installing Ollama..."
+        curl -fsSL https://ollama.com/install.sh | sh
     fi
-    sleep 2
-  done
-fi
 
-curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null
-"${OLLAMA_BIN}" pull "${MODEL}"
+    if ! curl -fsS "http://${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
+        log "Starting Ollama server..."
+        ollama serve >"${OLLAMA_LOG}" 2>&1 &
+        OLLAMA_PID=$!
+        trap 'kill "${OLLAMA_PID}" 2>/dev/null || true' EXIT
+        wait_for_ollama || { log "Ollama failed to start"; exit 1; }
+    fi
+    
+    log "Pulling model ${MODEL}..."
+    ollama pull "${MODEL}"
+}
 
-{
-  cat <<'EOF'
-You are a senior Playwright and CI troubleshooting engineer.
-Analyze the failed GitHub Actions Docker build or Playwright test run below.
-Rules:
-- Do not invent facts.
-- Base conclusions only on the provided logs and test output.
-- If the evidence is insufficient, say so.
-- Distinguish between:
-  1. Test defects
-  2. Application defects
-  3. Environment/configuration problems
-  4. Timing, synchronization, or network/flaky problems
-- Mention the failing test, locator, error message, or relevant file when available.
-- Keep the analysis practical and concise.
+build_prompt() {
+    log "Building analysis prompt..."
+    
+    {
+        echo "You are a senior Playwright and CI troubleshooting engineer. Analyze the failure logs below."
+        echo "Rules: Base conclusions on evidence, distinguish between test/app/env/flaky defects, and redact secrets."
+        echo "Respond in Markdown with: ## Probable root cause, ## Evidence, ## Recommended fix, ## Confidence"
+        echo -e "\n--- Docker Build Output ---"
+        [[ -f "${REPORT_DIR}/docker_build.log" ]] && tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/docker_build.log" || echo "N/A"
+        echo -e "\n--- Test Summary ---"
+        [[ -f "${REPORT_DIR}/test_summary.txt" ]] && cat "${REPORT_DIR}/test_summary.txt" || echo "N/A"
+        echo -e "\n--- Test Output ---"
+        if [[ -f "${REPORT_DIR}/test_output.log" ]]; then
+            tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/test_output.log" | 
+            sed -E 's/(PASSWORD|TOKEN|SECRET|API_KEY)[[:space:]]*[=:][[:space:]]*[^[:space:]]+/\1 [REDACTED]/Ig'
+        else
+            echo "N/A"
+        fi
+    } > "${PROMPT_FILE}"
+}
 
-Respond in Markdown with exactly these sections:
+run_analysis() {
+    log "Analyzing with ${MODEL}..."
+    echo -e "_Model: \`${MODEL}\` (local Ollama runner)_\n" > "${ANALYSIS_FILE}"
+    
+    if ! ollama run "${MODEL}" < "${PROMPT_FILE}" > "${REPORT_DIR}/raw.txt" 2>> "${OLLAMA_LOG}"; then
+        echo "## AI Analysis Failed" >> "${ANALYSIS_FILE}"
+        return 1
+    fi
+    
+    # Remove ANSI escape codes and clean output
+    sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g' "${REPORT_DIR}/raw.txt" >> "${ANALYSIS_FILE}"
+}
 
-## Probable root cause
-## Evidence
-## Recommended fix
-## Confidence
+main() {
+    setup_ollama
+    build_prompt
+    run_analysis || true
+    
+    if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+        cat "${ANALYSIS_FILE}" >> "${GITHUB_STEP_SUMMARY}"
+    fi
+    log "Results written to ${ANALYSIS_FILE}"
+}
 
-Docker build output:
-EOF
-  if [[ -f reports/docker_build.log ]]; then
-    tail -c 16000 reports/docker_build.log
-  else
-    printf '%s\n' "No Docker build output was produced."
-  fi
-  cat <<'EOF'
-Test summary:
-EOF
-  if [[ -f reports/test_summary.txt ]]; then
-    cat reports/test_summary.txt
-  else
-    printf '%s\n' "No test summary was produced."
-  fi
-  cat <<'EOF'
-Relevant test output (credentials and common secret values have been redacted):
-EOF
-  if [[ -f reports/test_output.log ]]; then
-    tail -c 16000 reports/test_output.log |
-      sed -E 's/(PASSWORD|TOKEN|SECRET|WEBHOOK_URL)=([^[:space:]]+)/\1=[REDACTED]/Ig'
-  else
-    printf '%s\n' "No captured test output was produced."
-  fi
-} > "${PROMPT_FILE}"
-
-{
-  echo
-  echo "_Model: \`${MODEL}\` (local Ollama runner; generated only after a test failure)._"
-  echo
-} > "${ANALYSIS_FILE}"
-
-# Keep Ollama diagnostics out of the Markdown response and remove terminal control
-# sequences that can otherwise appear as characters such as "�[1D�[K".
-OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}" run "${MODEL}" \
-  < "${PROMPT_FILE}" \
-  > "${RAW_ANALYSIS_FILE}" \
-  2>> "${OLLAMA_LOG}"
-
-perl -pe '
-  s/\e\[[0-?]*[ -\/]*[@-~]//g;
-  s/\e\][^\a]*(?:\a|\e\\)//g;
-  s/\r//g;
-  s/\x08//g;
-  s/\x1b//g;
-  s/[^\x09\x0A\x0D\x20-\x7E]/?/g;
-' "${RAW_ANALYSIS_FILE}" >> "${ANALYSIS_FILE}"
-
-if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  cat "${ANALYSIS_FILE}" >> "${GITHUB_STEP_SUMMARY}"
-fi
-
-echo "AI failure analysis written to ${ANALYSIS_FILE}"
+main
