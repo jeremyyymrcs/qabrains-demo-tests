@@ -1,5 +1,5 @@
 # Builder stage: Install dependencies, Python packages, Allure, and Playwright browsers
-FROM python:3.12-slim-bullseye AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -37,7 +37,7 @@ RUN playwright install chromium \
     && rm -rf /home/pwuser/.cache/ms-playwright/*/{.local-browsers,debug.log}
 
 # Final stage: Minimal runtime image
-FROM python:3.12-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
