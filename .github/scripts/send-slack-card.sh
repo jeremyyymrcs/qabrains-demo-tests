@@ -7,8 +7,8 @@ run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 if [[ -f "test-failure-analysis/ai-failure-analysis.md" ]]; then
   ai_analysis_json=$(
     {
-      printf '*AI Failure Analysis:*\n'
-      sed -n '1,80p' test-failure-analysis/ai-failure-analysis.md
+      printf '*AI Failure Analysis:*\n\n'
+      cat test-failure-analysis/ai-failure-analysis.md
     } | head -c 2800 | jq -Rs .
   )
 else
