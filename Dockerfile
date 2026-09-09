@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
         libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
         libx11-xcb1 libxss1 ca-certificates wget unzip \
-        openjdk-11-jre-headless curl tar \
+        openjdk-17-jre-headless curl tar \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
         libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
         libx11-xcb1 libxss1 ca-certificates \
-        openjdk-11-jre-headless \
+        openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
