@@ -37,7 +37,7 @@ setup_ollama() {
         trap 'kill "${OLLAMA_PID}" 2>/dev/null || true' EXIT
         wait_for_ollama || { log "Ollama failed to start"; exit 1; }
     fi
-    
+
     log "Pulling model ${MODEL}..."
     ollama pull "${MODEL}"
 }
@@ -190,12 +190,12 @@ EOF
 run_analysis() {
     log "Analyzing with ${MODEL}..."
     echo -e "_Model: \`${MODEL}\` (local Ollama runner)_\n" > "${ANALYSIS_FILE}"
-    
+
     if ! ollama run "${MODEL}" < "${PROMPT_FILE}" > "${REPORT_DIR}/raw.txt" 2>> "${OLLAMA_LOG}"; then
         echo "## AI Analysis Failed" >> "${ANALYSIS_FILE}"
         return 1
     fi
-    
+
     # Remove ANSI escape codes and clean output
     sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g' "${REPORT_DIR}/raw.txt" >> "${ANALYSIS_FILE}"
 }
@@ -204,7 +204,7 @@ main() {
     setup_ollama
     build_prompt
     run_analysis || true
-    
+
     if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
         cat "${ANALYSIS_FILE}" >> "${GITHUB_STEP_SUMMARY}"
     fi
