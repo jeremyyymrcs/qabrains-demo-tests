@@ -4,6 +4,18 @@ set -e
 # URL to the current GitHub Actions run
 run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
+if [[ -f "test-failure-analysis/ai-failure-analysis.md" ]]; then
+  ai_analysis_json=$(
+    {
+      printf '*AI Failure Analysis:*\n\n'
+      cat test-failure-analysis/ai-failure-analysis.md
+    } | head -c 2800 | jq -Rs .
+  )
+else
+  ai_analysis_json='"No AI failure analysis was generated for this run."'
+fi
+
+
 # Prepare Slack JSON payload
 json_payload=$(cat <<EOF
 {
@@ -100,6 +112,16 @@ json_payload=$(cat <<EOF
       "text": {
         "type": "mrkdwn",
         "text": "\n\n"
+      }
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": ${ai_analysis_json}
       }
     }
   ]
