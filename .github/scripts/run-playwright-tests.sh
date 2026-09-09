@@ -1,10 +1,13 @@
 #!/bin/bash
+
+set -uo pipefail
+
+# Run container in foreground and preserve its output for failure analysis.
+mkdir -p reports
+set +e
+docker run --name playwright-container --env-file .env playwright-test:latest 2>&1 | tee reports/test_output.log
+EXIT_CODE=${PIPESTATUS[0]}
 set -e
-
-# Run container in foreground and capture exit code
-docker run --name playwright-container --env-file .env playwright-test:latest
-
-EXIT_CODE=$?
 
 # Copy reports after container exits
 mkdir -p reports/allure-report
@@ -42,6 +45,6 @@ echo "failed=$FAILED" >> $GITHUB_OUTPUT
 echo "total=$TOTAL" >> $GITHUB_OUTPUT
 
 # Remove container
-docker rm -f playwright-container
+docker rm -f playwright-container || true
 
 exit $EXIT_FINAL

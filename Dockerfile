@@ -1,5 +1,5 @@
 # Builder stage: Install dependencies, Python packages, Allure, and Playwright browsers
-FROM python:3.12-slim-bullseye AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
         libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
         libx11-xcb1 libxss1 ca-certificates wget unzip \
-        openjdk-11-jre-headless curl tar \
+        openjdk-17-jre-headless curl tar \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -37,7 +37,7 @@ RUN playwright install chromium \
     && rm -rf /home/pwuser/.cache/ms-playwright/*/{.local-browsers,debug.log}
 
 # Final stage: Minimal runtime image
-FROM python:3.12-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxkbcommon0 libxcomposite1 libxrandr2 libgbm1 libasound2 \
         libpangocairo-1.0-0 libxshmfence1 libxdamage1 libxfixes3 \
         libx11-xcb1 libxss1 ca-certificates \
-        openjdk-11-jre-headless \
+        openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder

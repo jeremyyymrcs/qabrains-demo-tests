@@ -132,6 +132,20 @@ The Slack notifications include:
 These notifications help your team **quickly monitor test results** without manually checking GitHub Actions or opening reports.
 
 ---
+
+### 🤖 AI Failure Analysis with Ollama
+
+When the Playwright test step fails in GitHub Actions, the workflow starts a local
+[Ollama](https://ollama.com/) server on the free GitHub-hosted runner and uses the
+`qwen2.5:3b` model to analyze the captured test output. The analysis is:
+
+- Added to the GitHub Actions step summary.
+- Uploaded as the `test-failure-analysis` artifact.
+- Non-blocking, so an Ollama installation or model-download problem never hides the original test failure.
+
+No paid AI API or API key is required. To use a different local model, change
+`OLLAMA_MODEL` in `.github/workflows/run-qa-brains-playwright-test.yml`.
+
 ### ✅ Sample Passed Test
 Below is an example of a successful test execution:
 ![Sample Passed from Github Actions](docs/images/gha-passed-test.png)
@@ -144,5 +158,3 @@ Below is an example of a failed test execution:
 ![Sample Failed from Github Actions](docs/images/gha-failed-test.png)
 ![Sample Failed Slack Report](docs/images/slack-failed-test-report.png)
 ![Sample Failed Allure Report](docs/images/allure-failed-report.png)
-
-
