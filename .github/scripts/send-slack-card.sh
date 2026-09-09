@@ -115,6 +115,9 @@ json_payload=$(cat <<EOF
       }
     },
     {
+      "type": "divider"
+    },
+    {
       "type": "section",
       "text": {
         "type": "mrkdwn",

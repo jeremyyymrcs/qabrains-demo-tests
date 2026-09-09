@@ -10,7 +10,6 @@ RAW_ANALYSIS_FILE="reports/ai-failure-analysis.raw"
 
 mkdir -p reports
 cat > "${ANALYSIS_FILE}" <<'EOF'
-# AI failure analysis
 Ollama analysis did not complete. See the `ollama.log`, Docker build log, and test
 output in the `test-failure-analysis` artifact for details.
 EOF
@@ -100,15 +99,25 @@ curl --fail --silent "http://${OLLAMA_HOST}/api/tags" >/dev/null
   cat <<'EOF'
 You are a senior Playwright and CI troubleshooting engineer.
 Analyze the failed GitHub Actions Docker build or Playwright test run below.
-Do not invent facts.
+Rules:
+- Do not invent facts.
+- Base conclusions only on the provided logs and test output.
+- If the evidence is insufficient, say so.
+- Distinguish between:
+  1. Test defects
+  2. Application defects
+  3. Environment/configuration problems
+  4. Timing, synchronization, or network/flaky problems
+- Mention the failing test, locator, error message, or relevant file when available.
+- Keep the analysis practical and concise.
+
 Respond in Markdown with exactly these sections:
+
 ## Probable root cause
 ## Evidence
 ## Recommended fix
 ## Confidence
-Keep the analysis practical and concise. Distinguish test defects, application defects,
-environment problems, and flaky timing/network problems. Include the failing test or
-locator when the log provides it.
+
 Docker build output:
 EOF
   if [[ -f reports/docker_build.log ]]; then
@@ -136,7 +145,6 @@ EOF
 } > "${PROMPT_FILE}"
 
 {
-  echo "# AI failure analysis"
   echo
   echo "_Model: \`${MODEL}\` (local Ollama runner; generated only after a test failure)._"
   echo
