@@ -1,6 +1,13 @@
 import logging
 import colorlog
 import os
+import re
+
+
+def strip_ansi_codes(text: str) -> str:
+    \"\"\"Removes ANSI escape sequences from a string.\"\"\"
+    ansi_escape = re.compile(r'\\x1B(?:[@-Z\\\\-_]|\\[[0-?]*[ -;]*[@-~])')
+    return ansi_escape.sub('', text)
 
 
 def clear_custom_log_file():

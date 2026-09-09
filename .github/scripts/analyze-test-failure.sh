@@ -44,22 +44,146 @@ setup_ollama() {
 
 build_prompt() {
     log "Building analysis prompt..."
-    
+
     {
-        echo "You are a senior Playwright and CI troubleshooting engineer. Analyze the failure logs below."
-        echo "Rules: Base conclusions on evidence, distinguish between test/app/env/flaky defects, and redact secrets."
-        echo "Respond in Markdown with: ## Probable root cause, ## Evidence, ## Recommended fix, ## Confidence"
-        echo -e "\n--- Docker Build Output ---"
-        [[ -f "${REPORT_DIR}/docker_build.log" ]] && tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/docker_build.log" || echo "N/A"
-        echo -e "\n--- Test Summary ---"
-        [[ -f "${REPORT_DIR}/test_summary.txt" ]] && cat "${REPORT_DIR}/test_summary.txt" || echo "N/A"
-        echo -e "\n--- Test Output ---"
-        if [[ -f "${REPORT_DIR}/test_output.log" ]]; then
-            tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/test_output.log" | 
-            sed -E 's/(PASSWORD|TOKEN|SECRET|API_KEY)[[:space:]]*[=:][[:space:]]*[^[:space:]]+/\1 [REDACTED]/Ig'
+        cat <<'EOF'
+# ROLE
+
+You are a Senior QA Automation and CI/CD Troubleshooting Engineer specializing in:
+
+- Playwright
+- Python
+- Docker
+- GitHub Actions
+- Web application testing
+- CI/CD failure diagnosis
+
+# OBJECTIVE
+
+Analyze the provided CI/test evidence and identify the most likely root cause.
+
+Your goal is to determine:
+
+1. What failed
+2. Why it most likely failed
+3. The strongest evidence
+4. The smallest practical fix
+5. Your confidence level
+
+# IMPORTANT RULES
+
+- Use ONLY the evidence provided below.
+- Do NOT invent missing information.
+- Do NOT assume an application bug without evidence.
+- If the evidence is insufficient, say so clearly.
+- Prioritize actual errors, stack traces, assertions, failing locators, test names, and failed commands.
+- If multiple failures exist, identify the PRIMARY failure first.
+- Treat warnings as secondary unless evidence shows they caused the failure.
+- Do NOT recommend increasing timeouts unless the evidence supports a timing issue.
+- Do NOT provide generic Playwright troubleshooting advice.
+- Recommend the smallest appropriate fix.
+- Never expose, repeat, reconstruct, or infer passwords, tokens, API keys, cookies, or other secrets.
+
+# FAILURE CLASSIFICATION
+
+Choose ONE:
+
+- Test defect
+- Application defect
+- Environment/configuration problem
+- Timing/synchronization problem
+- Network/external dependency problem
+- CI/CD or Docker problem
+- Unknown / insufficient evidence
+
+# ANALYSIS PROCESS
+
+Determine internally:
+
+- What failed?
+- What is the exact error?
+- Which test, locator, file, function, command, or CI step is affected?
+- What does the evidence directly prove?
+- What is the most likely root cause?
+- Is there a secondary or cascading failure?
+- What is the smallest practical fix?
+
+Do NOT output your internal reasoning.
+Only provide the final diagnosis.
+
+# OUTPUT RULES
+
+- Be VERY concise.
+- Focus only on the most important information.
+- Do NOT write a long explanation.
+- Do NOT repeat the full logs.
+- Include only the strongest 1–3 pieces of evidence.
+- Keep the entire response under 250 words whenever possible.
+- Use short paragraphs and bullet points.
+- If the root cause is obvious, state it directly.
+
+# OUTPUT FORMAT
+
+Return ONLY these sections:
+
+## Failure classification
+One category and the affected test/step.
+
+## Probable root cause
+1–3 sentences maximum.
+
+## Evidence
+1–3 short bullet points containing only the strongest evidence.
+
+## Recommended fix
+1–3 concise actionable steps.
+
+## Secondary findings
+Mention only important secondary issues.
+If none exist, write: None.
+
+## Confidence
+Use exactly one: High, Medium, or Low.
+Add one short reason.
+
+# EVIDENCE
+
+The following sections contain the available evidence.
+
+EOF
+
+        echo "=== DOCKER BUILD OUTPUT ==="
+
+        if [[ -f "${REPORT_DIR}/docker_build.log" ]]; then
+            tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/docker_build.log"
         else
-            echo "N/A"
+            echo "No Docker build output was produced."
         fi
+
+        echo
+        echo "=== TEST SUMMARY ==="
+
+        if [[ -f "${REPORT_DIR}/test_summary.txt" ]]; then
+            cat "${REPORT_DIR}/test_summary.txt"
+        else
+            echo "No test summary was produced."
+        fi
+
+        echo
+        echo "=== TEST OUTPUT ==="
+
+        if [[ -f "${REPORT_DIR}/test_output.log" ]]; then
+            tail -c "${MAX_LOG_BYTES}" "${REPORT_DIR}/test_output.log" |
+                sed -E \
+                    -e 's/((PASSWORD|TOKEN|SECRET|API_KEY|WEBHOOK_URL)[[:space:]]*[=:])[[:space:]]*[^[:space:]]+/\1 [REDACTED]/Ig' \
+                    -e 's/(Authorization:[[:space:]]*Bearer)[[:space:]]+[^[:space:]]+/\1 [REDACTED]/Ig'
+        else
+            echo "No captured test output was produced."
+        fi
+
+        echo
+        echo "=== END OF EVIDENCE ==="
+
     } > "${PROMPT_FILE}"
 }
 
